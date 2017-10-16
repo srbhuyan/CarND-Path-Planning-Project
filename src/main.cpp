@@ -246,45 +246,94 @@ int main() {
 		}
 
 		bool too_close = false;
+		bool left_safe = true;
+		bool right_safe = true;
+		bool follow_target_car = false;
+		double target_car_speed = 0.0;
 
-		// find ref_v to use
+		// plan behavior
 		for(int i=0; i<sensor_fusion.size(); i++){
-	            // car is in my lane
+
+		    double vx = sensor_fusion[i][3];
+		    double vy = sensor_fusion[i][4];
+		    double check_speed = sqrt(vx*vx+vy*vy);
+		    double check_car_s = sensor_fusion[i][5];
 		    float d = sensor_fusion[i][6];
+		    
+	            // predict s value outwards in time
+	            check_car_s += ((double)prev_size*0.02*check_speed);
+
+		    // check if left is safe
+		    if(lane > 0){
+		        if(d < (2 + 4 * (lane-1) + 2) && d > (2 + 4 * (lane-1) - 2)){
+			    // check left s gap
+			    if(std::abs(check_car_s-car_s) < 40){
+			        left_safe = false;
+			    }
+		        }
+		    }else{
+		        left_safe = false;
+		    }
+                    
+		    // check if right is safe
+		    if(lane < 2){
+		        if(d < (2 + 4 * (lane+1) + 2) && d > (2 + 4 * (lane+1) - 2)){
+			    // check right s gap
+			    if(std::abs(check_car_s-car_s) < 40){
+			        right_safe = false;
+			    }
+		        }
+		    }else{
+		        right_safe = false;
+		    }
+
+		    // check if current lane is safe
 		    if(d < (2+4*lane+2) && d > (2+4*lane-2)){
-		        double vx = sensor_fusion[i][3];
-		        double vy = sensor_fusion[i][4];
-		        double check_speed = sqrt(vx*vx+vy*vy);
-		        double check_car_s = sensor_fusion[i][5];
 
-			check_car_s += ((double)prev_size*0.02*check_speed); // if using previous points can project s value outwards in time
-
-			// check s values greater than mine and s gap
+			// check s values greater than ego car and s gap
 			if((check_car_s > car_s) && ((check_car_s-car_s) < 30)){
-			    // do some logic here, lower reference velocity so we dont crash into the car infront of us
-			    // also flag to try to change lanes
-			    //ref_vel = 29.5; // mph
-			    too_close = true;
 
-			    if(lane > 0){
-			        lane = 0;
+                            too_close = true;
+			    target_car_speed = check_speed;
+
+			    if(lane == 1){
+			        if(left_safe){
+				    lane = lane - 1;
+				    //std::cout << "Left lane safe: Changing to lane " << lane << std::endl;
+				}else if(right_safe){
+				    lane = lane + 1;
+				    //std::cout << "Right lane safe: Changing to lane " << lane << std::endl;
+				}else{
+				    follow_target_car = true;
+				}
+			    }else if(lane == 0){
+				if(right_safe){
+				    lane = lane + 1;
+				    //std::cout << "Right lane safe: Changing to lane " << lane << std::endl;
+				}else{
+				    follow_target_car = true;
+				}
+			    }else if(lane == 2){
+				if(left_safe){
+				    lane = lane - 1;
+				    //std::cout << "Left lane safe: Changing to lane " << lane << std::endl;
+				}else{
+				    follow_target_car = true;
+				}
 			    }
 			}
 		    }
 		}
 
+                
 		// 0.224 ~= 5 meters per second sq
-                if(too_close){
+                if(too_close || (follow_target_car && (car_speed > target_car_speed)) ){
 		    ref_vel -= 0.224;
 		}else if(ref_vel < 49.5){
 		    ref_vel += 0.224;
 		}
 
           	json msgJson;
-
-          	//vector<double> next_x_vals;
-          	//vector<double> next_y_vals;
-
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 	
@@ -393,25 +442,6 @@ int main() {
 		    next_y_vals.push_back(y_point);
 		}
 
-		// First Implementation - Start
-		/* 
-	        double dist_inc = 0.3;
-                for(int i = 0; i < 50; i++){
-		    // Frenet coordinates
-		    double next_s = car_s + dist_inc * (i+1);
-		    double next_d = 6;
-
-		    vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-
-                    next_x_vals.push_back(next_xy[0]);
-                    next_y_vals.push_back(next_xy[1]);
-
-                    //next_x_vals.push_back(car_x + (dist_inc*i) * cos(deg2rad(car_yaw)));
-                    //next_y_vals.push_back(car_y + (dist_inc*i) * sin(deg2rad(car_yaw)));
-                }
-		*/
-		// First Implementation - End
-		
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
 
