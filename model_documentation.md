@@ -64,8 +64,11 @@ the path has processed since last time.
 
 ### 8. Generating Paths
 
-This implementation fits a spline to generate trajectory for the car to follow. To generate smooth trajectories using spline 5 control points are used of which 2 points are from the previous generated waypoints (line 351 to line 376 in main.cpp). 3 new points are generated at 30 meters, 60 meters and 90 meters ahead of the ego car's s coordinate (line 378 to line 398 in main.cpp). Using the spline and the previous remaining waypoints data, total 50 waypoints are generated for the ego car to follow in the next iteration (line 400 to line 446 in main.cpp).
+- Anchor Points For the Spline: I am using 5 anchor points to fit a spline. The first two points are the last and the second last points from the previous path points received from the simulator. If the previous path list has less than two points, than the ego car's current position and yaw is used to create the first point (yaw is used so that we generate the point tangent to car's current heading). The second points is the car's current position. The remaining three anchor points are placed at 30m, 60m and 90m in the s coordinate ahead of the car. Their corresponding d is caculated based on the lane the car wishes to be in. These three pairs of (s,d) coordinates are translated to xy coordinates using the 'getXY' function.
 
+- Path Generation: The five anchor points generated as described above are used to fit a spline. 
+
+- Smoothing: In each cycle 50 waypoints are sent to the simulator for the car to follow. To make a smooth transition between cycles, instead of generating new waypoints every time, the previous path points received from the simulator are used and only the deficit number of waypoints are generated.
 
 ### 9. Behavior Planning
 
