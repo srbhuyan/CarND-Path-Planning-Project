@@ -246,12 +246,13 @@ int main() {
 		}
 
 		bool too_close = false;
+		double brake_multiplier = 1.0;
 		bool left_safe = true;
 		bool right_safe = true;
 		bool follow_target_car = false;
 		double target_car_speed = 0.0;
 
-		// plan behavior
+		// behavior planner - decide lane safety by visiting all sensor data
 		for(int i=0; i<sensor_fusion.size(); i++){
 
 		    double vx = sensor_fusion[i][3];
@@ -264,28 +265,38 @@ int main() {
 	            check_car_s += ((double)prev_size*0.02*check_speed);
 
 		    // check if left is safe
-		    if(lane > 0){
-		        if(d < (2 + 4 * (lane-1) + 2) && d > (2 + 4 * (lane-1) - 2)){
-			    // check left s gap
-			    if(std::abs(check_car_s-car_s) < 40){
-			        left_safe = false;
-			    }
-		        }
-		    }else{
-		        left_safe = false;
+		    if(d < (2 + 4 * (lane-1) + 2) && d > (2 + 4 * (lane-1) - 2)){
+		        // check left s gap
+			if(std::abs(check_car_s-car_s) < 30){
+			    left_safe = false;
+			}
 		    }
-                    
-		    // check if right is safe
-		    if(lane < 2){
-		        if(d < (2 + 4 * (lane+1) + 2) && d > (2 + 4 * (lane+1) - 2)){
-			    // check right s gap
-			    if(std::abs(check_car_s-car_s) < 40){
-			        right_safe = false;
-			    }
-		        }
-		    }else{
+                    // check if right is safe
+		    else if(d < (2 + 4 * (lane+1) + 2) && d > (2 + 4 * (lane+1) - 2)){
+		        // check right s gap
+			if(std::abs(check_car_s-car_s) < 30){
+			    right_safe = false;
+			}
+                    }
+
+		    if(lane == 0){
+		        left_safe = false;
+		    }else if(lane == 2){
 		        right_safe = false;
 		    }
+		}
+
+		// handle current lane safety
+		for(int i=0; i<sensor_fusion.size(); i++){
+
+		    double vx = sensor_fusion[i][3];
+		    double vy = sensor_fusion[i][4];
+		    double check_speed = sqrt(vx*vx+vy*vy);
+		    double check_car_s = sensor_fusion[i][5];
+		    float d = sensor_fusion[i][6];
+		    
+	            // predict s value outwards in time
+	            check_car_s += ((double)prev_size*0.02*check_speed);
 
 		    // check if current lane is safe
 		    if(d < (2+4*lane+2) && d > (2+4*lane-2)){
@@ -293,28 +304,34 @@ int main() {
 			// check s values greater than ego car and s gap
 			if((check_car_s > car_s) && ((check_car_s-car_s) < 30)){
 
-                            too_close = true;
 			    target_car_speed = check_speed;
 
+			    // handle situation when the car in front applies sudden brake
+			    if((check_car_s > car_s) && ((check_car_s-car_s) < 10)){
+			        brake_multiplier = 2.5;
+				too_close = true;
+				//std::cout << "Too close!!!" << lane << std::endl;
+			    } 
+
 			    if(lane == 1){
-			        if(left_safe){
+			        if(left_safe && !too_close){
 				    lane = lane - 1;
 				    //std::cout << "Left lane safe: Changing to lane " << lane << std::endl;
-				}else if(right_safe){
+				}else if(right_safe && !too_close){
 				    lane = lane + 1;
 				    //std::cout << "Right lane safe: Changing to lane " << lane << std::endl;
 				}else{
 				    follow_target_car = true;
 				}
 			    }else if(lane == 0){
-				if(right_safe){
+				if(right_safe && !too_close){
 				    lane = lane + 1;
 				    //std::cout << "Right lane safe: Changing to lane " << lane << std::endl;
 				}else{
 				    follow_target_car = true;
 				}
 			    }else if(lane == 2){
-				if(left_safe){
+				if(left_safe && !too_close){
 				    lane = lane - 1;
 				    //std::cout << "Left lane safe: Changing to lane " << lane << std::endl;
 				}else{
@@ -327,8 +344,8 @@ int main() {
 
                 
 		// 0.224 ~= 5 meters per second sq
-                if(too_close || (follow_target_car && (car_speed > target_car_speed)) ){
-		    ref_vel -= 0.224;
+                if(follow_target_car && (car_speed > target_car_speed)){
+		    ref_vel -= 0.224 * brake_multiplier;
 		}else if(ref_vel < 49.5){
 		    ref_vel += 0.224;
 		}
