@@ -8,7 +8,13 @@ Each waypoint in the list contains  [x,y,s,dx,dy] values. x and y are the waypoi
 
 The highway's waypoints loop around so the frenet s value, distance along the road, goes from 0 to 6945.554.
 
-### 3. Basic Build Instructions
+### 3. Basic Build InstructionsTo meet specifications for this rubric it is necessary to discuss the method used for generating paths, and the lane changing decision making process, in detail. We want to see a clear and detailed description of the lane changing methodology.
+
+Additional details on the methodology employed when approaching slower traffic is also needed..
+
+requirement
+
+Please have this included in the next submission.
 
 1. Clone this repo.
 2. Make a build directory: `mkdir build && cd build`
@@ -60,11 +66,20 @@ the path has processed since last time.
 
 This implementation fits a spline to generate trajectory for the car to follow. To generate smooth trajectories using spline 5 control points are used of which 2 points are from the previous generated waypoints (line 351 to line 376 in main.cpp). 3 new points are generated at 30 meters, 60 meters and 90 meters ahead of the ego car's s coordinate (line 378 to line 398 in main.cpp). Using the spline and the previous remaining waypoints data, total 50 waypoints are generated for the ego car to follow in the next iteration (line 400 to line 446 in main.cpp).
 
+
 ### 9. Behavior Planning
 
-In each iteration the sensor data of nearby cars are mined to identify whether the current lane speed is safe, whether the left lane is safe for changing lane and whether the right lane is safe for changing lane. If the car ahead in the current lane is within a gap of 30 meters, then the ego car is flagged to make a lane change if a safe lane is available. Otherwise the ego car is made to reduce it's speed and follow the vehicle ahead until lane change is safe.
+First pass through the sensor data:
+- The left lane is marked as safe if there are no vehicles within 30m in front and 30m behind the ego vehicle in the left lane.
+- The right lane is marked as safe if there are no vehicles within 30m in front and 30m behind the ego vehicle in the right lane.
+- If the ego vehicle is in the left most lane, than a left lane change is marked as unsafe.
+- If the ego vehicle is in the right most lane, than a right lane change is marked as unsafe.
 
-The source code pertaining to the behavior planner implementation can be found between lines 248 and 334 in main.cpp.
+Second pass through the sensor data:
+- Lane Change Decision: If the gap between the ego vehicle and the vehicle in front is less than the set threshold (30m) than the lane safety information from the first pass is used to determine the appropriate action (i.e., keep lane, change left or change right). 
+- Handling Sudden Brake by Car in Front: Even though this works and the ego car is able to make safe lane changes, there were a few instances when the sudden braking by the vehicle in front resulted in a collision. To handle such situations I am maintaining a variable named "break_multiplier" which controls how aggressively the speed of the ego vehicle is reduced. (Refer to source code lines 309 to 314 in main.cpp)
+
+The source code pertaining to the behavior planner implementation can be found between lines 248 and 351 in main.cpp.
 
 ### 10. Result
 
