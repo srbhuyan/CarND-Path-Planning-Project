@@ -246,7 +246,6 @@ int main() {
 		}
 
 		bool too_close = false;
-		double brake_multiplier = 1.0;
 		bool left_safe = true;
 		bool right_safe = true;
 		bool follow_target_car = false;
@@ -262,7 +261,7 @@ int main() {
 		    float d = sensor_fusion[i][6];
 		    
 	            // predict s value outwards in time
-	            check_car_s += ((double)prev_size*0.02*check_speed);
+	            //check_car_s += ((double)prev_size*0.02*check_speed);
 
 		    // check if left is safe
 		    if(d < (2 + 4 * (lane-1) + 2) && d > (2 + 4 * (lane-1) - 2)){
@@ -307,10 +306,9 @@ int main() {
 			    target_car_speed = check_speed;
 
 			    // handle situation when the car in front applies sudden brake
-			    if((check_car_s > car_s) && ((check_car_s-car_s) < 10)){
-			        brake_multiplier = 2.5;
+			    if((check_car_s > car_s) && ((check_car_s-car_s) < 5)){
 				too_close = true;
-				//std::cout << "Too close!!!" << lane << std::endl;
+			        std::cout << "Too close!!!" << lane << std::endl;
 			    } 
 
 			    if(lane == 1){
@@ -345,7 +343,11 @@ int main() {
                 
 		// 0.224 ~= 5 meters per second sq
                 if(follow_target_car && (car_speed > target_car_speed)){
-		    ref_vel -= 0.224 * brake_multiplier;
+	            if(too_close){
+		        ref_vel = 1.0; 
+		    }else{
+		        ref_vel -= 0.224;
+		    }
 		}else if(ref_vel < 49.5){
 		    ref_vel += 0.224;
 		}
