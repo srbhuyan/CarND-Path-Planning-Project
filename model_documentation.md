@@ -26,8 +26,8 @@ The sensor fusion data received from the simulator is used to make decisions for
 - At this point the vehicle makes a lane change if it is safe to do so. Otherwise it reduces its speed and follows the vehicle in front until it is safe to make a lane change.
 
 **Speed Control**: 
-- When the car approaches a slow moving vehicle in front and lane changes are not safe, than the velocity is reduced at a constant rate of 5 meters per second until there is a safe gap. 
-- When it is safe to do so the velocity of the vehicle is incrased at a constant rate of 5 meters per second. 
+- When the car approaches a slow moving vehicle in front and lane changes are not safe, than the velocity is reduced at a constant deceleration of 5 meters per second squared until there is a safe gap. 
+- When it is safe to do so the velocity of the vehicle is incrased at a constant acceleration of 5 meters per second squared. 
 
 The source code pertaining to the behavior planner implementation can be found between lines 248 and 321 in main.cpp.
 
