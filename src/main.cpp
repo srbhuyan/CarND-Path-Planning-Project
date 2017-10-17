@@ -248,8 +248,6 @@ int main() {
 		bool too_close = false;
 		bool left_safe = true;
 		bool right_safe = true;
-		bool follow_target_car = false;
-		double target_car_speed = 0.0;
 
 		// behavior planner - decide lane safety by visiting all sensor data
 		for(int i=0; i<sensor_fusion.size(); i++){
@@ -261,7 +259,7 @@ int main() {
 		    float d = sensor_fusion[i][6];
 		    
 	            // predict s value outwards in time
-	            //check_car_s += ((double)prev_size*0.02*check_speed);
+	            check_car_s += ((double)prev_size*0.02*check_speed);
 
 		    // check if left is safe
 		    if(d < (2 + 4 * (lane-1) + 2) && d > (2 + 4 * (lane-1) - 2)){
@@ -283,76 +281,44 @@ int main() {
 		    }else if(lane == 2){
 		        right_safe = false;
 		    }
-		}
 
-		// handle current lane safety
-		for(int i=0; i<sensor_fusion.size(); i++){
-
-		    double vx = sensor_fusion[i][3];
-		    double vy = sensor_fusion[i][4];
-		    double check_speed = sqrt(vx*vx+vy*vy);
-		    double check_car_s = sensor_fusion[i][5];
-		    float d = sensor_fusion[i][6];
-		    
-	            // predict s value outwards in time
-	            check_car_s += ((double)prev_size*0.02*check_speed);
-
-		    // check if current lane is safe
-		    if(d < (2+4*lane+2) && d > (2+4*lane-2)){
-
-			// check s values greater than ego car and s gap
-			if((check_car_s > car_s) && ((check_car_s-car_s) < 30)){
-
-			    target_car_speed = check_speed;
-
-			    // handle situation when the car in front applies sudden brake
-			    if((check_car_s > car_s) && ((check_car_s-car_s) < 5)){
-				too_close = true;
-			        std::cout << "Too close!!!" << lane << std::endl;
-			    } 
-
-			    if(lane == 1){
-			        if(left_safe && !too_close){
-				    lane = lane - 1;
-				    //std::cout << "Left lane safe: Changing to lane " << lane << std::endl;
-				}else if(right_safe && !too_close){
-				    lane = lane + 1;
-				    //std::cout << "Right lane safe: Changing to lane " << lane << std::endl;
-				}else{
-				    follow_target_car = true;
-				}
-			    }else if(lane == 0){
-				if(right_safe && !too_close){
-				    lane = lane + 1;
-				    //std::cout << "Right lane safe: Changing to lane " << lane << std::endl;
-				}else{
-				    follow_target_car = true;
-				}
-			    }else if(lane == 2){
-				if(left_safe && !too_close){
-				    lane = lane - 1;
-				    //std::cout << "Left lane safe: Changing to lane " << lane << std::endl;
-				}else{
-				    follow_target_car = true;
-				}
-			    }
-			}
-		    }
+		    // check current lane safety
+		    if(d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)){
+	                if((check_car_s > car_s) && ((check_car_s-car_s) < 30)){
+			    too_close = true; 
+		        }
+                    }
 		}
 
                 
 		// 0.224 ~= 5 meters per second sq
-                if(follow_target_car && (car_speed > target_car_speed)){
-	            if(too_close){
-		        ref_vel = 1.0; 
-		    }else{
-		        ref_vel -= 0.224;
+                if(too_close){
+		    ref_vel -= 0.224;
+
+                    // change lane if safe
+	            if(lane == 1){
+		        if(left_safe){
+			    lane = lane - 1;
+			    //std::cout << "Left lane safe: Changing to lane " << lane << std::endl;
+			}else if(right_safe){
+			    lane = lane + 1;
+			    //std::cout << "Right lane safe: Changing to lane " << lane << std::endl;
+			}
+		    }else if(lane == 0){
+			if(right_safe){
+			    lane = lane + 1;
+			    //std::cout << "Right lane safe: Changing to lane " << lane << std::endl;
+			}
+		    }else if(lane == 2){
+		        if(left_safe){
+			    lane = lane - 1;
+			    //std::cout << "Left lane safe: Changing to lane " << lane << std::endl;
+			}
 		    }
+
 		}else if(ref_vel < 49.5){
 		    ref_vel += 0.224;
 		}
-
-          	json msgJson;
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 	
@@ -460,6 +426,8 @@ int main() {
 		    next_x_vals.push_back(x_point);
 		    next_y_vals.push_back(y_point);
 		}
+
+          	json msgJson;
 
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
