@@ -162,6 +162,10 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 }
 
 int main() {
+
+  //std::ofstream f;
+  //f.open("run_debug.txt");
+
   uWS::Hub h;
 
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
@@ -249,6 +253,8 @@ int main() {
 		bool left_safe = true;
 		bool right_safe = true;
 
+		//f << "Car info: " << "s: " << car_s << ", \t d: " << car_d << ", \t v: " << car_speed << std::endl;
+
 		// behavior planner - decide lane safety by visiting all sensor data
 		for(int i=0; i<sensor_fusion.size(); i++){
 
@@ -257,7 +263,9 @@ int main() {
 		    double check_speed = sqrt(vx*vx+vy*vy);
 		    double check_car_s = sensor_fusion[i][5];
 		    float d = sensor_fusion[i][6];
-		    
+
+		    vector<double> car_under_investigation = sensor_fusion[i];
+
 	            // predict s value outwards in time
 	            check_car_s += ((double)prev_size*0.02*check_speed);
 
@@ -288,37 +296,75 @@ int main() {
 			    too_close = true; 
 		        }
                     }
+
+		    // Handle Udacity simulator bug
+		    // Sometimes the simulator is sending wrong location 
+		    // information for nearby cars (I have seen the s, d values as (0, 0))
+
+		    if(check_car_s == 0 && d == 0){
+		        left_safe = false;
+			right_safe = false;
+			too_close = true;
+		    }
+
+		    // Debug
+		    /*
+		    vector<double> curr_car = sensor_fusion[i];
+
+		    f << "\t";
+
+		    // other car info
+		    for (std::vector<double>::const_iterator i = curr_car.begin(); i != curr_car.end(); ++i){
+	                f << *i << ' ';
+		    }
+
+		    f << "\t Left Safe = " << left_safe ? "T" : "F" ;
+		    f << "\t Right Safe = " << right_safe ? "T" : "F";
+		    f << "\t Too Close = " << too_close ? "T" : "F";
+                    f << std::endl;
+		    */
 		}
 
-                
+               
+	        //f << "Behavior: ";	
+
 		// 0.224 ~= 5 meters per second sq
+		// 0.402 ~= 9 meters per second sq
                 if(too_close){
-		    ref_vel -= 0.224;
+                    ref_vel -= 0.224;
+		    //ref_vel -= 0.402;
+
+		    //f << "Decelerate + Change Lane (If Safe)" << std::endl;
 
                     // change lane if safe
 	            if(lane == 1){
 		        if(left_safe){
 			    lane = lane - 1;
-			    //std::cout << "Left lane safe: Changing to lane " << lane << std::endl;
+			    //f << "Left lane safe: Changing to lane " << lane << std::endl;
 			}else if(right_safe){
 			    lane = lane + 1;
-			    //std::cout << "Right lane safe: Changing to lane " << lane << std::endl;
+			    //f << "Right lane safe: Changing to lane " << lane << std::endl;
 			}
 		    }else if(lane == 0){
 			if(right_safe){
 			    lane = lane + 1;
-			    //std::cout << "Right lane safe: Changing to lane " << lane << std::endl;
+			    //f << "Right lane safe: Changing to lane " << lane << std::endl;
 			}
 		    }else if(lane == 2){
 		        if(left_safe){
 			    lane = lane - 1;
-			    //std::cout << "Left lane safe: Changing to lane " << lane << std::endl;
+			    //f << "Left lane safe: Changing to lane " << lane << std::endl;
 			}
 		    }
 
 		}else if(ref_vel < 49.5){
 		    ref_vel += 0.224;
+		    //f << "Accelerate + Keep Lane" << std::endl;
+		}else{
+		    //f << "Keep Lane" << std::endl;
 		}
+
+                //f.flush();
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 	
